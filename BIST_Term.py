@@ -182,33 +182,37 @@ def finansal_veri_getir(ticker_kodu: str, donem: str) -> dict[str, pd.DataFrame 
 
 
 def df_formatla(df: pd.DataFrame, para_birimi: str = "TRY") -> pd.DataFrame:
-    """
-    DataFrame sütunlarını tarih olarak formatlar,
-    sayısal değerleri milyar/milyon cinsinden gösterir.
-    """
     if df is None or df.empty:
         return df
 
     df = df.copy()
 
-    # Sütun başlıklarını tarih formatına çevir
-    df.columns = [
-        col.strftime("%Y Ç%q" if hasattr(col, 'quarter') else "%Y-%m") 
-        if hasattr(col, 'strftime') else str(col)
-        for col in df.columns
-    ]
+    # Tarih sütunlarını güvenli stringe çevir
+    yeni_kolonlar = []
+    for col in df.columns:
+        try:
+            if hasattr(col, "year"):
+                yeni_kolonlar.append(f"{col.year}-{col.month:02d}")
+            else:
+                yeni_kolonlar.append(str(col))
+        except:
+            yeni_kolonlar.append(str(col))
 
-    # Sayısal değerleri milyar TL'ye çevir ve formatla
+    # Duplicate kolonları kaldır
+    df.columns = pd.Index(yeni_kolonlar)
+    df = df.loc[:, ~df.columns.duplicated()]
+
+    # Sayı formatlama
     def sayi_formatla(x):
         try:
             val = float(x)
             if abs(val) >= 1e9:
-                return f"{val/1e9:,.2f} Mr"   # Milyar
+                return f"{val/1e9:,.2f} Mr"
             elif abs(val) >= 1e6:
-                return f"{val/1e6:,.2f} Mn"   # Milyon
+                return f"{val/1e6:,.2f} Mn"
             else:
                 return f"{val:,.0f}"
-        except (TypeError, ValueError):
+        except:
             return x
 
     return df.applymap(sayi_formatla)
