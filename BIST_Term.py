@@ -1,4 +1,3 @@
-
 """
 BİST Finansal Analiz Uygulaması - MVP (Aşama 1)
 Gereksinimler: pip install streamlit yfinance pandas
@@ -378,40 +377,42 @@ BILANCO_SATIRLARI = [
     "Stockholders Equity",
     "Retained Earnings",
 ]
+
 if bilanco_df_ham is not None and not bilanco_df_ham.empty:
-     bilanco_ozet = ozet_satirlar_sec(bilanco_df_ham, BILANCO_SATIRLARI)
-     bilanco_formatli = df_formatla(bilanco_ozet, info["para_birimi"])
- 
-     BILANCO_TR = {
-         "Total Assets": "Toplam Varlıklar",
-         "Current Assets": "Dönen Varlıklar",
-         "Cash": "Nakit & Nakit Benzerleri",
-         "Total Liabilities": "Toplam Yükümlülükler",
-         "Current Liabilities": "Kısa Vadeli Yükümlülükler",
-         "Long Term Debt": "Uzun Vadeli Borç",
-         "Stockholders Equity": "Özsermaye",
-         "Retained Earnings": "Birikmiş Kârlar",
-     }
-     bilanco_formatli.index = [
-         BILANCO_TR.get(idx, idx) for idx in bilanco_formatli.index
-     ]
-     bilanco_formatli.index.name = f"Kalem ({info['para_birimi']})"
- 
-     st.dataframe(bilanco_formatli, use_container_width=True)
+    bilanco_ozet = ozet_satirlar_sec(bilanco_df_ham, BILANCO_SATIRLARI)
+    bilanco_formatli = df_formatla(bilanco_ozet, info["para_birimi"])
+
+    BILANCO_TR = {
+        "Total Assets": "Toplam Varlıklar",
+        "Current Assets": "Dönen Varlıklar",
+        "Cash": "Nakit & Nakit Benzerleri",
+        "Total Liabilities": "Toplam Yükümlülükler",
+        "Current Liabilities": "Kısa Vadeli Yükümlülükler",
+        "Long Term Debt": "Uzun Vadeli Borç",
+        "Stockholders Equity": "Özsermaye",
+        "Retained Earnings": "Birikmiş Kârlar",
+    }
+    bilanco_formatli.index = [
+        BILANCO_TR.get(idx, idx) for idx in bilanco_formatli.index
+    ]
+    bilanco_formatli.index.name = f"Kalem ({info['para_birimi']})"
+
+    st.dataframe(bilanco_formatli, use_container_width=True)
 else:
-     st.markdown(
-         '<div class="info-box">ℹ️ Bilanço verisi bulunamadı.</div>',
-         unsafe_allow_html=True,
-     )
- 
- # ─────────────────────────────────────────────
- # FOOTER
- # ─────────────────────────────────────────────
- st.markdown("---")
- st.markdown(
-     """
-     <div style='text-align:center;font-size:0.72rem;color:#484f58;padding:8px 0'>
-     BİST Finansal Analiz Platformu · MVP Aşama 1 · Veri: yfinance · Yatırım tavsiyesi değildir.
-     </div>
-     """,
-     unsafe_allow_html=True,
+    st.markdown(
+        '<div class="info-box">ℹ️ Bilanço verisi bulunamadı.</div>',
+        unsafe_allow_html=True,
+    )
+
+# ─────────────────────────────────────────────
+# FOOTER
+# ─────────────────────────────────────────────
+st.markdown("---")
+st.markdown(
+    """
+    <div style='text-align:center;font-size:0.72rem;color:#484f58;padding:8px 0'>
+    BİST Finansal Analiz Platformu · MVP Aşama 1 · Veri: yfinance · Yatırım tavsiyesi değildir.
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
