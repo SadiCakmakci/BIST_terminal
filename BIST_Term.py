@@ -378,8 +378,7 @@ BILANCO_SATIRLARI = [
     "Stockholders Equity",
     "Retained Earnings",
 ]
-
- if bilanco_df_ham is not None and not bilanco_df_ham.empty:
+if bilanco_df_ham is not None and not bilanco_df_ham.empty:
      bilanco_ozet = ozet_satirlar_sec(bilanco_df_ham, BILANCO_SATIRLARI)
      bilanco_formatli = df_formatla(bilanco_ozet, info["para_birimi"])
  
@@ -399,7 +398,7 @@ BILANCO_SATIRLARI = [
      bilanco_formatli.index.name = f"Kalem ({info['para_birimi']})"
  
      st.dataframe(bilanco_formatli, use_container_width=True)
- else:
+else:
      st.markdown(
          '<div class="info-box">ℹ️ Bilanço verisi bulunamadı.</div>',
          unsafe_allow_html=True,
