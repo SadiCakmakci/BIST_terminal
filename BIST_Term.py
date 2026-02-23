@@ -1,247 +1,309 @@
-# BIST_Term.py
-# Streamlit Financial Statement Analyzer — Single File Version
-
-from __future__ import annotations
 import streamlit as st
 import pandas as pd
-import io
-from enum import Enum
+import numpy as np
+from typing import Dict, List, Tuple, Optional
+import re
 
+# ============================================================
+# CONFIG
+# ============================================================
 
-# =============================
-# TRANSLATIONS
-# =============================
+st.set_page_config(
+    page_title="Financial Analysis Terminal",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
-def get_t(lang: str):
-    TR = {
-        "app_title": "Finansal Tablo Analiz",
-        "app_tagline": "Dosya yükle • Otomatik sınıflandır • Analiz et",
-        "upload_header": "Dosya",
-        "upload_label": "Excel / CSV yükle",
-        "upload_help": "Finansal tablo içeren dosya",
-        "upload_sheet_label": "Sheet seç",
-        "table_header": "Tablo Türü",
-        "table_all": "Hepsi",
-        "table_income": "Gelir Tablosu",
-        "table_balance": "Bilanço",
-        "table_cashflow": "Nakit Akışı",
-        "period_header": "Dönem",
-        "period_annual": "Yıllık",
-        "period_quarterly": "Çeyreklik",
-        "no_file_msg": "Dosya yükleyerek başlayın",
-        "err_empty": "Dosya boş",
-        "err_read": "Dosya okunamadı",
-        "info_classification": "Tablo otomatik sınıflandırıldı",
-        "no_rows_msg": "Gösterilecek satır yok",
-        "no_cols_msg": "Gösterilecek kolon yok",
-        "stat_total_rows": "Satır",
-        "stat_total_cols": "Kolon",
-        "stat_numeric": "Numerik",
-        "stat_table_type": "Tablo",
-        "warn_unclassified": "Bazı satırlar sınıflandırılamadı",
-        "footer": "Financial Analyzer MVP",
+# ============================================================
+# TRANSLATIONS MODULE
+# ============================================================
+
+TRANSLATIONS = {
+    "EN": {
+        "upload": "Upload Financial File",
+        "statement": "Statement Type",
+        "period": "Period Type",
+        "scale": "Scale",
+        "income": "Income Statement",
+        "balance": "Balance Sheet",
+        "cashflow": "Cash Flow",
+        "other": "Other",
+        "annual": "Annual",
+        "quarterly": "Quarterly",
+        "rows": "Rows",
+        "columns": "Columns",
+        "numeric_cols": "Numeric Columns",
+        "statement_detected": "Detected Statement",
+        "no_file": "Please upload a file.",
+        "error": "File processing error.",
+        "footer": "Financial Analysis System MVP",
+    },
+    "TR": {
+        "upload": "Finansal Dosya Yükle",
+        "statement": "Finansal Tablo",
+        "period": "Dönem Tipi",
+        "scale": "Ölçek",
+        "income": "Gelir Tablosu",
+        "balance": "Bilanço",
+        "cashflow": "Nakit Akış",
+        "other": "Diğer",
+        "annual": "Yıllık",
+        "quarterly": "Çeyreklik",
+        "rows": "Satır",
+        "columns": "Kolon",
+        "numeric_cols": "Sayısal Kolon",
+        "statement_detected": "Tespit Edilen Tablo",
+        "no_file": "Lütfen dosya yükleyin.",
+        "error": "Dosya işleme hatası.",
+        "footer": "Finansal Analiz Sistemi MVP",
     }
+}
 
-    EN = {
-        "app_title": "Financial Analyzer",
-        "app_tagline": "Upload • Classify • Analyze",
-    }
+# ============================================================
+# KEYWORD ENGINE
+# ============================================================
 
-    return TR if lang == "TR" else EN
+INCOME_KEYWORDS = [
+    "revenue", "sales", "net income", "gross profit",
+    "operating profit", "hasılat", "satış", "net kar", "brüt kar"
+]
 
+BALANCE_KEYWORDS = [
+    "assets", "liabilities", "equity",
+    "varlık", "yükümlülük", "özkaynak"
+]
 
-# =============================
-# ENUMS
-# =============================
+CASHFLOW_KEYWORDS = [
+    "cash flow", "operating cash",
+    "nakit akışı", "faaliyetlerden nakit"
+]
 
-class StatementType(Enum):
-    INCOME = "income"
-    BALANCE = "balance"
-    CASHFLOW = "cashflow"
-    OTHER = "other"
-
-
-class PeriodType(Enum):
-    ANNUAL = "annual"
-    QUARTERLY = "quarterly"
-
-
-# =============================
+# ============================================================
 # DATA LOADER
-# =============================
+# ============================================================
 
-class LoadResult:
-    def __init__(self, ok: bool, df=None, error=None):
-        self.ok = ok
-        self.df = df
-        self.error = error
+@st.cache_data
+def load_file(file) -> Dict[str, pd.DataFrame]:
+    dataframes = {}
 
+    if file.name.endswith(".csv"):
+        df = pd.read_csv(file)
+        dataframes["CSV"] = df
+        return dataframes
 
-def get_sheet_names(file_bytes, filename):
-    if filename.endswith(".xlsx"):
-        xls = pd.ExcelFile(io.BytesIO(file_bytes))
-        return xls.sheet_names
-    return []
+    excel = pd.ExcelFile(file)
 
+    for sheet in excel.sheet_names:
+        try:
+            df = excel.parse(sheet)
+            dataframes[sheet] = df
+        except Exception:
+            continue
 
-def load_file(file_bytes, filename, sheet=None):
-    try:
-        if filename.endswith(".csv"):
-            df = pd.read_csv(io.BytesIO(file_bytes))
-        else:
-            df = pd.read_excel(io.BytesIO(file_bytes), sheet_name=sheet)
+    return dataframes
 
-        if df.empty:
-            return LoadResult(False, error="empty")
-
-        return LoadResult(True, df=df)
-
-    except Exception as e:
-        return LoadResult(False, error=str(e))
-
-
-# =============================
+# ============================================================
 # CLASSIFIER
-# =============================
+# ============================================================
 
-def classify_dataframe(df: pd.DataFrame):
+def score_text(text: str, keywords: List[str]) -> int:
+    text = str(text).lower()
+    return sum(1 for k in keywords if k in text)
+
+def classify_dataframe(df: pd.DataFrame) -> str:
+
+    score_income = 0
+    score_balance = 0
+    score_cash = 0
+
+    for col in df.columns:
+        score_income += score_text(col, INCOME_KEYWORDS)
+        score_balance += score_text(col, BALANCE_KEYWORDS)
+        score_cash += score_text(col, CASHFLOW_KEYWORDS)
+
+    for _, row in df.iterrows():
+        row_text = " ".join(map(str, row.values))
+        score_income += score_text(row_text, INCOME_KEYWORDS)
+        score_balance += score_text(row_text, BALANCE_KEYWORDS)
+        score_cash += score_text(row_text, CASHFLOW_KEYWORDS)
+
+    scores = {
+        "INCOME": score_income,
+        "BALANCE": score_balance,
+        "CASHFLOW": score_cash
+    }
+
+    best = max(scores, key=scores.get)
+
+    if scores[best] == 0:
+        return "OTHER"
+
+    return best
+
+def classify_all(dataframes: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
 
     classified = {
-        StatementType.INCOME: pd.DataFrame(),
-        StatementType.BALANCE: pd.DataFrame(),
-        StatementType.CASHFLOW: pd.DataFrame(),
-        StatementType.OTHER: pd.DataFrame(),
+        "INCOME": None,
+        "BALANCE": None,
+        "CASHFLOW": None,
+        "OTHER": None
     }
 
-    for idx, row in df.iterrows():
-        text = " ".join(map(str, row.values)).lower()
-
-        if any(x in text for x in ["revenue", "sales", "income", "profit"]):
-            classified[StatementType.INCOME] = pd.concat(
-                [classified[StatementType.INCOME], row.to_frame().T]
-            )
-
-        elif any(x in text for x in ["asset", "liability", "equity"]):
-            classified[StatementType.BALANCE] = pd.concat(
-                [classified[StatementType.BALANCE], row.to_frame().T]
-            )
-
-        elif any(x in text for x in ["cash"]):
-            classified[StatementType.CASHFLOW] = pd.concat(
-                [classified[StatementType.CASHFLOW], row.to_frame().T]
-            )
-
-        else:
-            classified[StatementType.OTHER] = pd.concat(
-                [classified[StatementType.OTHER], row.to_frame().T]
-            )
+    for name, df in dataframes.items():
+        category = classify_dataframe(df)
+        classified[category] = df
 
     return classified
 
+# ============================================================
+# PERIOD DETECTION
+# ============================================================
 
-def has_mixed_statements(df):
-    return True
+def detect_period(columns: List[str]) -> Tuple[List[str], List[str]]:
 
+    annual_cols = []
+    quarterly_cols = []
 
-# =============================
-# PERIOD FILTER
-# =============================
+    for col in columns:
+        col_str = str(col).lower()
 
-def filter_columns(df: pd.DataFrame, period: PeriodType):
+        if re.search(r"(q[1-4]|[1-4]ç)", col_str):
+            quarterly_cols.append(col)
+        elif re.search(r"(20\d{2})", col_str):
+            annual_cols.append(col)
 
-    cols = []
+    return annual_cols, quarterly_cols
 
-    for c in df.columns:
-        text = str(c).lower()
-
-        if period == PeriodType.QUARTERLY:
-            if any(x in text for x in ["q", "ç"]):
-                cols.append(c)
-
-        else:
-            cols.append(c)
-
-    if cols:
-        return df[cols]
-
-    return df
-
-
-# =============================
+# ============================================================
 # FORMATTERS
-# =============================
+# ============================================================
 
-def format_dataframe(df: pd.DataFrame):
+def detect_numeric(df: pd.DataFrame) -> pd.DataFrame:
+    for col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors="ignore")
     return df
 
+def scale_dataframe(df: pd.DataFrame, scale: str) -> pd.DataFrame:
 
-# =============================
-# UI
-# =============================
+    factor = 1
 
-def render_page():
+    if scale == "Thousands":
+        factor = 1_000
+    elif scale == "Millions":
+        factor = 1_000_000
 
-    st.set_page_config(layout="wide")
+    numeric_cols = df.select_dtypes(include=np.number).columns
+    df[numeric_cols] = df[numeric_cols] / factor
 
-    lang = st.radio("🌐", ["TR", "EN"], horizontal=True)
-    T = get_t(lang)
+    return df
 
-    st.title(T["app_title"])
+# ============================================================
+# UI HELPERS
+# ============================================================
 
-    uploaded = st.file_uploader("Dosya yükle", type=["xlsx", "csv"])
+def metric_card(label: str, value):
+    st.metric(label, value)
 
-    if uploaded is None:
-        st.info("Dosya yükleyin")
+def apply_dark_theme():
+    st.markdown("""
+        <style>
+        body { background-color: #0e1117; color: white; }
+        </style>
+    """, unsafe_allow_html=True)
+
+# ============================================================
+# MAIN APP
+# ============================================================
+
+def main():
+
+    apply_dark_theme()
+
+    # Language
+    lang = st.selectbox("Language", ["EN", "TR"])
+    T = TRANSLATIONS[lang]
+
+    st.title("📊 Financial Analysis Terminal")
+
+    uploaded = st.file_uploader(T["upload"], type=["xlsx", "xls", "csv"])
+
+    if not uploaded:
+        st.info(T["no_file"])
         return
 
-    file_bytes = uploaded.read()
-    sheet_names = get_sheet_names(file_bytes, uploaded.name)
-
-    sheet = None
-    if len(sheet_names) > 1:
-        sheet = st.selectbox("Sheet", sheet_names)
-
-    result = load_file(file_bytes, uploaded.name, sheet)
-
-    if not result.ok:
-        st.error("Dosya okunamadı")
+    try:
+        data = load_file(uploaded)
+        classified = classify_all(data)
+    except Exception as e:
+        st.error(T["error"])
+        st.exception(e)
         return
 
-    df = result.df
+    statement_options = {
+        T["income"]: "INCOME",
+        T["balance"]: "BALANCE",
+        T["cashflow"]: "CASHFLOW",
+        T["other"]: "OTHER"
+    }
 
-    classified = classify_dataframe(df)
-
-    table_type = st.selectbox(
-        "Tablo",
-        ["Hepsi", "Gelir", "Bilanço", "Nakit"]
+    statement_choice = st.selectbox(
+        T["statement"],
+        list(statement_options.keys())
     )
 
-    period = st.radio(
-        "Dönem",
-        ["Yıllık", "Çeyreklik"]
+    df = classified.get(statement_options[statement_choice])
+
+    if df is None:
+        st.warning("No data detected.")
+        return
+
+    df = detect_numeric(df)
+
+    annual_cols, quarterly_cols = detect_period(df.columns)
+
+    period_choice = st.selectbox(
+        T["period"],
+        [T["annual"], T["quarterly"]]
     )
 
-    if table_type == "Gelir":
-        view_df = classified[StatementType.INCOME]
-
-    elif table_type == "Bilanço":
-        view_df = classified[StatementType.BALANCE]
-
-    elif table_type == "Nakit":
-        view_df = classified[StatementType.CASHFLOW]
-
+    if period_choice == T["annual"] and annual_cols:
+        display_cols = annual_cols
+    elif period_choice == T["quarterly"] and quarterly_cols:
+        display_cols = quarterly_cols
     else:
-        view_df = df
+        display_cols = df.columns
 
-    if period == "Çeyreklik":
-        view_df = filter_columns(view_df, PeriodType.QUARTERLY)
+    scale = st.selectbox(
+        T["scale"],
+        ["Full", "Thousands", "Millions"]
+    )
 
-    st.dataframe(view_df, use_container_width=True)
+    df_scaled = scale_dataframe(df.copy(), scale)
 
+    display_df = df_scaled[display_cols]
 
-# =============================
-# RUN
-# =============================
+    # Metrics
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric(T["rows"], display_df.shape[0])
+    col2.metric(T["columns"], display_df.shape[1])
+    col3.metric(T["numeric_cols"], len(display_df.select_dtypes(include=np.number).columns))
+    col4.metric(T["statement_detected"], statement_options[statement_choice])
+
+    st.dataframe(display_df, use_container_width=True)
+
+    # TODO FUTURE MODULES
+    # ---------------------
+    # Financial Ratios
+    # Charts
+    # Margin Analysis
+    # DCF Valuation
+    # AI Commentary
+    # Export to Excel
+
+    st.markdown("---")
+    st.caption(T["footer"])
+
 
 if __name__ == "__main__":
-    render_page()
+    main()
