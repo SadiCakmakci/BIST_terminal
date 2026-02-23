@@ -1,662 +1,337 @@
-"""
-BİST Finansal Analiz Uygulaması - MVP v1.0
-Fintables benzeri, çok dilli (TR/EN) finansal tablo gösterimi
-Veri Kaynağı: İş Yatırım Mali Tablo API
-"""
-
 import streamlit as st
-import requests
 import pandas as pd
-from datetime import datetime
+import io
 
-# ─────────────────────────────────────────────
-# SAYFA AYARLARI
-# ─────────────────────────────────────────────
+# ── PAGE CONFIG ──────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="BİST Finansal Analiz",
+    page_title="Financial Table Viewer",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ─────────────────────────────────────────────
-# BIST30 HİSSE LİSTESİ
-# ─────────────────────────────────────────────
-BIST30 = [
-    "AKBNK", "ARCLK", "ASELS", "BIMAS", "DOHOL",
-    "EKGYO", "EREGL", "FROTO", "GARAN", "GUBRF",
-    "HALKB", "ISCTR", "KCHOL", "KOZAA", "KOZAL",
-    "KRDMD", "MGROS", "ODAS", "PETKM", "PGSUS",
-    "SAHOL", "SASA", "SISE", "TAVHL", "TCELL",
-    "THYAO", "TKFEN", "TOASO", "TTKOM", "VAKBN",
-    "YKBNK",
-]
-
-# ─────────────────────────────────────────────
-# ÇEVİRİ / ETİKETLER
-# ─────────────────────────────────────────────
-LABELS = {
+# ── TRANSLATIONS ─────────────────────────────────────────────────────────────
+LANG = {
     "TR": {
-        "title": "BİST Finansal Analiz",
-        "subtitle": "İş Yatırım verileriyle Fintables benzeri finansal tablo gösterimi",
-        "sidebar_header": "Kontrol Paneli",
-        "language": "Dil / Language",
-        "ticker": "Hisse Senedi",
-        "period_type": "Veri Periyodu",
-        "quarterly": "Çeyreklik",
-        "annual": "Yıllık",
-        "fetch_btn": "Verileri Getir",
-        "loading": "Veriler yükleniyor...",
-        "error_fetch": "Veri çekme hatası",
-        "error_empty": "Bu hisse için veri bulunamadı.",
-        "error_parse": "Veri ayrıştırma hatası",
-        "unit_note": "Birim: Bin TL (Thousand TRY)",
-        "table1_title": "📋 Gelir Tablosu (Income Statement)",
-        "table2_title": "🏦 Bilanço (Balance Sheet)",
-        "table3_title": "💵 Nakit Akım Tablosu (Cash Flow Statement)",
-        "rows_income": {
-            "revenue": "Satış Gelirleri",
-            "gross_profit": "Brüt Kar",
-            "operating_income": "Faaliyet Karı",
-            "ebitda": "FAVÖK (EBITDA)",
-            "net_income": "Net Dönem Karı",
-        },
-        "rows_balance": {
-            "current_assets": "Dönen Varlıklar",
-            "non_current_assets": "Duran Varlıklar",
-            "total_assets": "Toplam Varlıklar",
-            "current_liabilities": "Kısa Vadeli Yükümlülükler",
-            "non_current_liabilities": "Uzun Vadeli Yükümlülükler",
-            "equity": "Ana Ortaklığa Ait Özkaynaklar",
-            "net_debt": "Net Borç",
-        },
-        "rows_cashflow": {
-            "operating_cf": "İşletme Faaliyetlerinden Nakit Akışları",
-            "investing_cf": "Yatırım Faaliyetlerinden Nakit Akışları",
-            "financing_cf": "Finansman Faaliyetlerinden Nakit Akışları",
-        },
-        "no_data": "-",
+        "app_title": "📊 Finansal Tablo Görüntüleyici",
+        "app_subtitle": "Excel veya CSV dosyanızı yükleyerek finansal tablonuzu şık bir şekilde görüntüleyin.",
+        "sidebar_header": "⚙️ Ayarlar",
+        "lang_label": "🌐 Dil / Language",
+        "upload_label": "📂 Dosya Yükle (.xlsx veya .csv)",
+        "upload_help": "Yalnızca .xlsx ve .csv formatları desteklenmektedir.",
+        "no_file": "⬅️ Başlamak için sol menüden bir dosya yükleyin.",
+        "preview_title": "📋 Tablo Önizlemesi",
+        "rows_label": "Satır",
+        "cols_label": "Sütun",
+        "numeric_cols": "Sayısal Sütunlar",
+        "sheet_label": "📄 Sayfa Seç",
+        "success": "✅ Dosya başarıyla yüklendi.",
+        "error_read": "❌ Dosya okunurken bir hata oluştu:",
+        "error_empty": "⚠️ Yüklenen dosya boş görünüyor.",
+        "stats_title": "📐 Genel Bilgiler",
+        "footer": "Veri API'ye gönderilmez · Tüm veriler yerel olarak işlenir",
     },
     "EN": {
-        "title": "BİST Financial Analysis",
-        "subtitle": "Fintables-style financial table display powered by İş Yatırım data",
-        "sidebar_header": "Control Panel",
-        "language": "Dil / Language",
-        "ticker": "Stock Ticker",
-        "period_type": "Data Period",
-        "quarterly": "Quarterly",
-        "annual": "Annual",
-        "fetch_btn": "Fetch Data",
-        "loading": "Loading data...",
-        "error_fetch": "Data fetch error",
-        "error_empty": "No data found for this ticker.",
-        "error_parse": "Data parsing error",
-        "unit_note": "Unit: Thousand TRY (Bin TL)",
-        "table1_title": "📋 Income Statement (Gelir Tablosu)",
-        "table2_title": "🏦 Balance Sheet (Bilanço)",
-        "table3_title": "💵 Cash Flow Statement (Nakit Akım Tablosu)",
-        "rows_income": {
-            "revenue": "Revenue",
-            "gross_profit": "Gross Profit",
-            "operating_income": "Operating Income",
-            "ebitda": "EBITDA",
-            "net_income": "Net Income",
-        },
-        "rows_balance": {
-            "current_assets": "Current Assets",
-            "non_current_assets": "Non-Current Assets",
-            "total_assets": "Total Assets",
-            "current_liabilities": "Current Liabilities",
-            "non_current_liabilities": "Non-Current Liabilities",
-            "equity": "Total Equity (Parent)",
-            "net_debt": "Net Debt",
-        },
-        "rows_cashflow": {
-            "operating_cf": "Operating Cash Flow",
-            "investing_cf": "Investing Cash Flow",
-            "financing_cf": "Financing Cash Flow",
-        },
-        "no_data": "-",
+        "app_title": "📊 Financial Table Viewer",
+        "app_subtitle": "Upload your Excel or CSV file to display your financial statements elegantly.",
+        "sidebar_header": "⚙️ Settings",
+        "lang_label": "🌐 Language / Dil",
+        "upload_label": "📂 Upload File (.xlsx or .csv)",
+        "upload_help": "Only .xlsx and .csv formats are supported.",
+        "no_file": "⬅️ Upload a file from the sidebar to get started.",
+        "preview_title": "📋 Table Preview",
+        "rows_label": "Rows",
+        "cols_label": "Columns",
+        "numeric_cols": "Numeric Columns",
+        "sheet_label": "📄 Select Sheet",
+        "success": "✅ File loaded successfully.",
+        "error_read": "❌ An error occurred while reading the file:",
+        "error_empty": "⚠️ The uploaded file appears to be empty.",
+        "stats_title": "📐 Summary",
+        "footer": "Data is not sent to any API · All processing is local",
     },
 }
 
-# ─────────────────────────────────────────────
-# İŞ YATIRIM İTEM EŞLEŞME HARİTASI
-# itemDescTr / itemDescEng anahtar kelimeleri
-# ─────────────────────────────────────────────
-ITEM_MAP = {
-    # Gelir Tablosu
-    "revenue":           {"tr": ["Hasılat", "Net Satışlar", "Satış Gelirleri", "Hasılat,"],
-                          "en": ["Revenue", "Net Sales", "Sales Revenue"]},
-    "gross_profit":      {"tr": ["Brüt Kar", "Brüt Kâr"],
-                          "en": ["Gross Profit"]},
-    "operating_income":  {"tr": ["Esas Faaliyetlerden Kar", "Faaliyet Karı", "Esas Faaliyet Karı/Zararı"],
-                          "en": ["Operating Profit", "Operating Income", "Profit from Operations"]},
-    "depreciation":      {"tr": ["Amortisman", "Amortisman ve İtfa"],
-                          "en": ["Depreciation", "Depreciation and Amortization"]},
-    "net_income":        {"tr": ["Ana Ortaklık Payları", "Ana Ortaklığa Ait Net Dönem Karı", "Dönem Karı/Zararı"],
-                          "en": ["Profit Attributable to Parent", "Net Income", "Net Profit"]},
-    # Bilanço
-    "current_assets":        {"tr": ["Dönen Varlıklar"],
-                              "en": ["Current Assets"]},
-    "non_current_assets":    {"tr": ["Duran Varlıklar"],
-                              "en": ["Non-Current Assets", "Non Current Assets"]},
-    "total_assets":          {"tr": ["Toplam Varlıklar", "TOPLAM VARLIKLAR"],
-                              "en": ["Total Assets"]},
-    "current_liabilities":   {"tr": ["Kısa Vadeli Yükümlülükler", "KISA VADELİ YÜKÜMLÜLÜKLER"],
-                              "en": ["Current Liabilities"]},
-    "non_current_liabilities":{"tr": ["Uzun Vadeli Yükümlülükler", "UZUN VADELİ YÜKÜMLÜLÜKLER"],
-                               "en": ["Non-Current Liabilities", "Non Current Liabilities"]},
-    "equity":                {"tr": ["Ana Ortaklığa Ait Özkaynaklar", "Özkaynaklar"],
-                              "en": ["Equity Attributable to Parent", "Total Equity"]},
-    "cash":                  {"tr": ["Nakit ve Nakit Benzerleri"],
-                              "en": ["Cash and Cash Equivalents"]},
-    "st_financial_debt":     {"tr": ["Kısa Vadeli Finansal Borçlar", "Kısa Vadeli Krediler ve Borçlanmalar"],
-                              "en": ["Short-Term Borrowings", "Short Term Financial Liabilities"]},
-    "lt_financial_debt":     {"tr": ["Uzun Vadeli Finansal Borçlar", "Uzun Vadeli Krediler ve Borçlanmalar"],
-                              "en": ["Long-Term Borrowings", "Long Term Financial Liabilities"]},
-    # Nakit Akım
-    "operating_cf":   {"tr": ["İşletme Faaliyetlerinden", "İşletme Faaliyetlerinde Kullanılan Net Nakit"],
-                       "en": ["Operating Activities", "Net Cash from Operating"]},
-    "investing_cf":   {"tr": ["Yatırım Faaliyetlerinden", "Yatırım Faaliyetlerinde Kullanılan Net Nakit"],
-                       "en": ["Investing Activities", "Net Cash from Investing"]},
-    "financing_cf":   {"tr": ["Finansman Faaliyetlerinden", "Finansman Faaliyetlerinde Kullanılan Net Nakit"],
-                       "en": ["Financing Activities", "Net Cash from Financing"]},
-}
-
-# ─────────────────────────────────────────────
-# URL & DÖNEMLERİ OLUŞTURMA
-# ─────────────────────────────────────────────
-def build_periods(period_type: str):
+# ── CUSTOM CSS ────────────────────────────────────────────────────────────────
+st.markdown(
     """
-    Son 4 dönemi dinamik olarak üretir.
-    Çeyreklik: 3, 6, 9, 12 (son 4 çeyrek)
-    Yıllık   : 12, 12, 12, 12 (son 4 yıl aralıkları)
-    """
-    today = datetime.today()
-    current_year = today.year
-    current_month = today.month
-
-    if period_type == "quarterly":
-        # Mevcut çeyreği bul
-        quarter_month = ((current_month - 1) // 3) * 3  # 3, 6 veya 9 → en son tamamlanan
-        if quarter_month == 0:
-            quarter_month = 12
-            current_year -= 1
-
-        periods = []
-        y, m = current_year, quarter_month
-        for _ in range(4):
-            periods.append((y, m))
-            m -= 3
-            if m <= 0:
-                m += 12
-                y -= 1
-        return periods  # [(yıl, dönem), ...]
-
-    else:  # annual
-        periods = []
-        y = current_year - 1  # Son tamamlanan yıl
-        for _ in range(4):
-            periods.append((y, 12))
-            y -= 1
-        return periods
-
-
-def build_url(ticker: str, periods: list) -> str:
-    base = "https://www.isyatirim.com.tr/_layouts/15/IsYatirim.Website/Common/Data.aspx/MaliTablo"
-    params = f"companyCode={ticker}&exchange=TRY&financialGroup=XI_29"
-    for i, (y, p) in enumerate(periods, start=1):
-        params += f"&year{i}={y}&period{i}={p}"
-    return f"{base}?{params}"
-
-
-# ─────────────────────────────────────────────
-# VERİ ÇEKME & PARSE
-# ─────────────────────────────────────────────
-@st.cache_data(ttl=600, show_spinner=False)
-def fetch_financial_data(ticker: str, period_type: str) -> pd.DataFrame | None:
-    """
-    İş Yatırım'dan mali tablo verisini çeker.
-    Dönüş: Ham DataFrame (tüm kalemler) veya None
-    """
-    try:
-        periods = build_periods(period_type)
-        url = build_url(ticker, periods)
-
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Accept": "application/json",
-            "Referer": "https://www.isyatirim.com.tr/",
-        }
-
-        response = requests.get(url, headers=headers, timeout=20)
-        response.raise_for_status()
-
-        data = response.json()
-        value = data.get("value", [])
-
-        if not value:
-            return None
-
-        df = pd.DataFrame(value)
-        return df, periods
-
-    except requests.exceptions.RequestException as e:
-        st.error(f"Bağlantı hatası: {e}")
-        return None
-    except (KeyError, ValueError) as e:
-        st.error(f"JSON ayrıştırma hatası: {e}")
-        return None
-
-
-def find_item_value(df: pd.DataFrame, item_key: str, lang: str) -> dict:
-    """
-    DataFrame'den belirli bir kaleme ait değerleri anahtar kelimelerle bulur.
-    """
-    keywords = ITEM_MAP.get(item_key, {}).get(lang.lower(), [])
-    fallback = ITEM_MAP.get(item_key, {}).get("tr" if lang == "en" else "en", [])
-
-    desc_col = "itemDescTr" if lang == "TR" or lang == "tr" else "itemDescEng"
-    fallback_col = "itemDescEng" if desc_col == "itemDescTr" else "itemDescTr"
-
-    row = None
-    for kw in keywords:
-        mask = df[desc_col].str.contains(kw, case=False, na=False)
-        if mask.any():
-            row = df[mask].iloc[0]
-            break
-
-    # Bulunamazsa fallback dil sütununu dene
-    if row is None:
-        for kw in fallback:
-            mask = df[fallback_col].str.contains(kw, case=False, na=False)
-            if mask.any():
-                row = df[mask].iloc[0]
-                break
-
-    if row is None:
-        return {}
-
-    # Değer sütunlarını topla (value1..value4)
-    result = {}
-    for i in range(1, 5):
-        col = f"value{i}"
-        if col in row.index:
-            val = row[col]
-            try:
-                result[f"v{i}"] = float(val) / 1000 if val not in [None, "", "null"] else None
-            except (ValueError, TypeError):
-                result[f"v{i}"] = None
-    return result
-
-
-def format_number(val):
-    """Sayıyı 1.000 ayraçlı tam sayı formatına çevirir."""
-    if val is None or (isinstance(val, float) and pd.isna(val)):
-        return "-"
-    try:
-        return f"{int(round(val)):,}".replace(",", ".")
-    except (ValueError, TypeError):
-        return "-"
-
-
-def build_column_headers(periods: list) -> list:
-    """Dönem listesinden tablo başlıklarını üretir."""
-    quarter_map = {3: "Q1", 6: "Q2", 9: "Q3", 12: "Q4/FY"}
-    headers = []
-    for y, p in periods:
-        if p == 12:
-            headers.append(f"{y}")
-        else:
-            headers.append(f"{y} {quarter_map.get(p, str(p))}")
-    return headers
-
-
-def build_table(row_keys: list, row_labels: dict, df: pd.DataFrame, lang: str, computed: dict = None) -> pd.DataFrame:
-    """
-    Verilen satır anahtarlarından formatlanmış DataFrame tablosu oluşturur.
-    computed: Hesaplanmış satırlar sözlüğü (key -> {v1..v4})
-    """
-    lang_key = "TR" if lang == "TR" else "EN"
-    data = {}
-
-    for key in row_keys:
-        label = row_labels.get(key, key)
-        if computed and key in computed:
-            vals = computed[key]
-        else:
-            vals = find_item_value(df, key, lang_key)
-
-        row_data = []
-        for i in range(1, 5):
-            v = vals.get(f"v{i}") if vals else None
-            row_data.append(format_number(v))
-        data[label] = row_data
-
-    return pd.DataFrame(data).T
-
-
-# ─────────────────────────────────────────────
-# HESAPLAMALAR
-# ─────────────────────────────────────────────
-def compute_derived(df: pd.DataFrame, lang: str) -> dict:
-    """
-    FAVÖK ve Net Borç gibi hesaplanmış kalemleri döndürür.
-    """
-    computed = {}
-
-    # FAVÖK = Faaliyet Karı + Amortisman
-    op_vals = find_item_value(df, "operating_income", lang)
-    dep_vals = find_item_value(df, "depreciation", lang)
-
-    ebitda_vals = {}
-    for i in range(1, 5):
-        op = op_vals.get(f"v{i}") if op_vals else None
-        dep = dep_vals.get(f"v{i}") if dep_vals else None
-        if op is not None and dep is not None:
-            ebitda_vals[f"v{i}"] = op + abs(dep)
-        elif op is not None:
-            ebitda_vals[f"v{i}"] = op  # Amortisman bulunamadıysa
-        else:
-            ebitda_vals[f"v{i}"] = None
-    computed["ebitda"] = ebitda_vals
-
-    # Net Borç = ST Finansal Borç + LT Finansal Borç - Nakit
-    st_debt = find_item_value(df, "st_financial_debt", lang)
-    lt_debt = find_item_value(df, "lt_financial_debt", lang)
-    cash_vals = find_item_value(df, "cash", lang)
-
-    net_debt_vals = {}
-    for i in range(1, 5):
-        st = st_debt.get(f"v{i}") if st_debt else None
-        lt = lt_debt.get(f"v{i}") if lt_debt else None
-        ca = cash_vals.get(f"v{i}") if cash_vals else None
-        parts = [x for x in [st, lt, ca] if x is not None]
-        if parts:
-            st = st or 0
-            lt = lt or 0
-            ca = ca or 0
-            net_debt_vals[f"v{i}"] = st + lt - ca
-        else:
-            net_debt_vals[f"v{i}"] = None
-    computed["net_debt"] = net_debt_vals
-
-    return computed
-
-
-# ─────────────────────────────────────────────
-# CUSTOM CSS
-# ─────────────────────────────────────────────
-def inject_css():
-    st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap');
-
-    :root {
-        --bg: #0d1117;
-        --surface: #161b22;
-        --border: #30363d;
-        --accent: #58a6ff;
-        --accent2: #3fb950;
-        --text: #e6edf3;
-        --muted: #8b949e;
-        --header-bg: #1c2128;
-    }
+    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap');
 
     html, body, [class*="css"] {
-        font-family: 'IBM Plex Sans', sans-serif;
-        background-color: var(--bg) !important;
-        color: var(--text) !important;
+        font-family: 'DM Sans', sans-serif;
+    }
+
+    /* Main background */
+    .stApp {
+        background: linear-gradient(135deg, #0f1117 0%, #1a1d2e 50%, #0f1117 100%);
+        color: #e8eaf0;
     }
 
     /* Sidebar */
-    section[data-testid="stSidebar"] {
-        background-color: var(--surface) !important;
-        border-right: 1px solid var(--border);
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #141621 0%, #1e2235 100%);
+        border-right: 1px solid #2d3354;
     }
 
-    /* Ana başlık */
+    [data-testid="stSidebar"] * {
+        color: #c8cce0 !important;
+    }
+
+    /* Title */
     .main-title {
-        font-family: 'IBM Plex Mono', monospace;
-        font-size: 1.8rem;
-        font-weight: 600;
-        color: var(--accent);
-        letter-spacing: -0.02em;
-        margin-bottom: 0;
+        font-family: 'DM Serif Display', serif;
+        font-size: 2.4rem;
+        color: #a8b4ff;
+        margin-bottom: 0.2rem;
+        letter-spacing: -0.5px;
     }
+
     .main-subtitle {
-        font-size: 0.82rem;
-        color: var(--muted);
-        margin-bottom: 1.5rem;
-    }
-
-    /* Tablo başlıkları */
-    .section-title {
-        font-family: 'IBM Plex Mono', monospace;
+        font-family: 'DM Sans', sans-serif;
         font-size: 1rem;
-        font-weight: 600;
-        color: var(--accent);
-        border-left: 3px solid var(--accent);
-        padding-left: 0.6rem;
-        margin: 1.5rem 0 0.5rem 0;
+        color: #6b7280;
+        margin-bottom: 2rem;
+        font-weight: 300;
     }
 
-    /* Birim notu */
-    .unit-note {
+    /* Stat cards */
+    .stat-card {
+        background: linear-gradient(135deg, #1e2235, #252a40);
+        border: 1px solid #2d3354;
+        border-radius: 12px;
+        padding: 1rem 1.4rem;
+        text-align: center;
+    }
+
+    .stat-label {
         font-size: 0.72rem;
-        color: var(--muted);
-        font-family: 'IBM Plex Mono', monospace;
-        margin-bottom: 0.4rem;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
     }
 
-    /* DataFrame tablosu */
-    .stDataFrame {
-        border: 1px solid var(--border) !important;
-        border-radius: 6px;
+    .stat-value {
+        font-family: 'DM Mono', monospace;
+        font-size: 1.6rem;
+        color: #a8b4ff;
+        font-weight: 500;
+        margin-top: 0.2rem;
+    }
+
+    /* Dataframe overrides */
+    [data-testid="stDataFrame"] {
+        border-radius: 12px;
         overflow: hidden;
+        border: 1px solid #2d3354;
+    }
+
+    /* Success / error */
+    .stAlert {
+        border-radius: 10px;
+    }
+
+    /* Footer */
+    .footer-text {
+        font-size: 0.72rem;
+        color: #374151;
+        text-align: center;
+        margin-top: 3rem;
+        font-family: 'DM Mono', monospace;
+        letter-spacing: 0.5px;
     }
 
     /* Divider */
     hr {
-        border-color: var(--border) !important;
-        margin: 1.2rem 0;
+        border-color: #2d3354;
+        margin: 1.5rem 0;
     }
 
-    /* Ticker badge */
-    .ticker-badge {
-        display: inline-block;
-        background: var(--accent);
-        color: #0d1117;
-        font-family: 'IBM Plex Mono', monospace;
-        font-weight: 600;
-        font-size: 0.85rem;
-        padding: 2px 10px;
-        border-radius: 4px;
-        margin-left: 8px;
-    }
-
-    /* Button */
-    .stButton > button {
-        background-color: var(--accent2) !important;
-        color: #0d1117 !important;
-        font-weight: 600 !important;
-        border: none !important;
-        border-radius: 4px !important;
-        padding: 0.4rem 1.2rem !important;
-        font-family: 'IBM Plex Sans', sans-serif !important;
-    }
-    .stButton > button:hover {
-        opacity: 0.85 !important;
-    }
-
-    /* Info/warning */
-    .stAlert {
-        background-color: var(--surface) !important;
-        border: 1px solid var(--border) !important;
+    /* Section heading */
+    .section-heading {
+        font-family: 'DM Serif Display', serif;
+        font-size: 1.15rem;
+        color: #8892c8;
+        margin-bottom: 0.8rem;
     }
     </style>
-    """, unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
+
+# ── SIDEBAR ───────────────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("---")
+
+    # Language selector (always first)
+    lang_choice = st.radio(
+        "🌐 Dil / Language",
+        options=["TR", "EN"],
+        horizontal=True,
+        label_visibility="collapsed",
+    )
+    T = LANG[lang_choice]
+
+    st.markdown(f"### {T['sidebar_header']}")
+    st.markdown("---")
+
+    # File uploader
+    uploaded_file = st.file_uploader(
+        T["upload_label"],
+        type=["xlsx", "csv"],
+        help=T["upload_help"],
+    )
+
+    st.markdown("---")
+    st.markdown(f"<p style='font-size:0.7rem;color:#4b5563;text-align:center'>{T['footer']}</p>", unsafe_allow_html=True)
 
 
-# ─────────────────────────────────────────────
-# UYGULAMA ANA FONKSİYONU
-# ─────────────────────────────────────────────
-def main():
-    inject_css()
+# ── HELPERS ───────────────────────────────────────────────────────────────────
+def format_number(val):
+    """Format numeric values with thousands separator."""
+    try:
+        if pd.isna(val):
+            return "-"
+        if isinstance(val, (int, float)):
+            if val == int(val):
+                return f"{int(val):,}".replace(",", ".")
+            return f"{val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return val
+    except Exception:
+        return val
 
-    # ── Sidebar ──────────────────────────────
-    with st.sidebar:
-        st.markdown("## ⚙️ Kontrol Paneli")
-        st.divider()
 
-        lang = st.selectbox(
-            "🌐 Dil / Language",
-            options=["TR", "EN"],
-            index=0,
-            key="lang_select",
-        )
-        L = LABELS[lang]
+def load_file(file) -> tuple[pd.DataFrame | None, str | None, list[str]]:
+    """Load xlsx or csv; return (df, error_msg, sheet_names)."""
+    name = file.name.lower()
+    sheets = []
+    try:
+        if name.endswith(".csv"):
+            df = pd.read_csv(file, thousands=None)
+            return df, None, []
+        else:
+            xf = pd.ExcelFile(file)
+            sheets = xf.sheet_names
+            return None, None, sheets  # caller will pick sheet
+    except Exception as e:
+        return None, str(e), []
 
-        st.divider()
 
-        ticker = st.selectbox(
-            L["ticker"],
-            options=sorted(BIST30),
-            index=sorted(BIST30).index("THYAO") if "THYAO" in BIST30 else 0,
-        )
+def read_sheet(file, sheet_name: str) -> tuple[pd.DataFrame | None, str | None]:
+    try:
+        df = pd.read_excel(file, sheet_name=sheet_name)
+        return df, None
+    except Exception as e:
+        return None, str(e)
 
-        period_label_map = {L["quarterly"]: "quarterly", L["annual"]: "annual"}
-        period_choice = st.radio(
-            L["period_type"],
-            options=list(period_label_map.keys()),
-        )
-        period_type = period_label_map[period_choice]
 
-        st.divider()
-        fetch_clicked = st.button(L["fetch_btn"], use_container_width=True)
+# ── MAIN ──────────────────────────────────────────────────────────────────────
+st.markdown(f"<p class='main-title'>{T['app_title']}</p>", unsafe_allow_html=True)
+st.markdown(f"<p class='main-subtitle'>{T['app_subtitle']}</p>", unsafe_allow_html=True)
 
-        st.markdown("""
-        <br><small style='color:#8b949e'>
-        📡 Kaynak: İş Yatırım<br>
-        🔄 Cache: 10 dk
-        </small>
-        """, unsafe_allow_html=True)
+if uploaded_file is None:
+    st.info(T["no_file"])
+    st.stop()
 
-    # ── Ana Ekran Başlığı ────────────────────
-    col1, col2 = st.columns([7, 1])
-    with col1:
-        st.markdown(
-            f'<div class="main-title">{L["title"]} '
-            f'<span class="ticker-badge">{ticker}</span></div>'
-            f'<div class="main-subtitle">{L["subtitle"]}</div>',
-            unsafe_allow_html=True,
-        )
+# ── FILE LOADING ──────────────────────────────────────────────────────────────
+file_name = uploaded_file.name.lower()
 
-    # ── Veri Çekme ───────────────────────────
-    if not fetch_clicked and "last_df" not in st.session_state:
-        st.info("← Soldaki panelden hisse ve periyot seçip 'Verileri Getir' butonuna tıklayın.")
-        return
+if file_name.endswith(".csv"):
+    df, err = None, None
+    try:
+        df = pd.read_csv(uploaded_file)
+    except Exception as e:
+        err = str(e)
 
-    if fetch_clicked:
-        with st.spinner(L["loading"]):
-            result = fetch_financial_data(ticker, period_type)
-            if result is None:
-                st.error(L["error_empty"])
-                return
-            df_raw, periods = result
-            st.session_state["last_df"] = df_raw
-            st.session_state["last_periods"] = periods
-            st.session_state["last_ticker"] = ticker
+    if err:
+        st.error(f"{T['error_read']} {err}")
+        st.stop()
+    if df is None or df.empty:
+        st.warning(T["error_empty"])
+        st.stop()
+
+else:  # xlsx
+    try:
+        xf = pd.ExcelFile(uploaded_file)
+        sheet_names = xf.sheet_names
+    except Exception as e:
+        st.error(f"{T['error_read']} {e}")
+        st.stop()
+
+    if len(sheet_names) > 1:
+        selected_sheet = st.selectbox(T["sheet_label"], options=sheet_names)
     else:
-        df_raw = st.session_state.get("last_df")
-        periods = st.session_state.get("last_periods")
-        if df_raw is None:
-            st.error(L["error_empty"])
-            return
+        selected_sheet = sheet_names[0]
 
-    # ── Sütun başlıkları ────────────────────
-    col_headers = build_column_headers(periods)
-
-    # ── Hesaplamalar ─────────────────────────
-    computed = compute_derived(df_raw, lang)
-
-    # ─────────────────────────────────────────
-    # TABLO 1: GELİR TABLOSU
-    # ─────────────────────────────────────────
-    st.markdown(f'<div class="section-title">{L["table1_title"]}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="unit-note">💡 {L["unit_note"]}</div>', unsafe_allow_html=True)
-
-    income_keys = ["revenue", "gross_profit", "operating_income", "ebitda", "net_income"]
     try:
-        df_income = build_table(
-            row_keys=income_keys,
-            row_labels=L["rows_income"],
-            df=df_raw,
-            lang=lang,
-            computed=computed,
-        )
-        df_income.columns = col_headers
-        st.dataframe(df_income, use_container_width=True)
+        df = pd.read_excel(uploaded_file, sheet_name=selected_sheet)
     except Exception as e:
-        st.error(f"{L['error_parse']}: {e}")
+        st.error(f"{T['error_read']} {e}")
+        st.stop()
 
-    st.divider()
+    if df is None or df.empty:
+        st.warning(T["error_empty"])
+        st.stop()
 
-    # ─────────────────────────────────────────
-    # TABLO 2: BİLANÇO
-    # ─────────────────────────────────────────
-    st.markdown(f'<div class="section-title">{L["table2_title"]}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="unit-note">💡 {L["unit_note"]}</div>', unsafe_allow_html=True)
+# ── FILL NaN ──────────────────────────────────────────────────────────────────
+# Keep a copy with original dtypes for display formatting
+df_display = df.copy()
 
-    balance_keys = [
-        "current_assets", "non_current_assets", "total_assets",
-        "current_liabilities", "non_current_liabilities", "equity", "net_debt"
-    ]
-    try:
-        df_balance = build_table(
-            row_keys=balance_keys,
-            row_labels=L["rows_balance"],
-            df=df_raw,
-            lang=lang,
-            computed=computed,
-        )
-        df_balance.columns = col_headers
-        st.dataframe(df_balance, use_container_width=True)
-    except Exception as e:
-        st.error(f"{L['error_parse']}: {e}")
+# Identify numeric columns BEFORE filling
+numeric_cols = df_display.select_dtypes(include="number").columns.tolist()
 
-    st.divider()
+# Fill NaN with "-"
+df_display = df_display.fillna("-")
 
-    # ─────────────────────────────────────────
-    # TABLO 3: NAKİT AKIM TABLOSU
-    # ─────────────────────────────────────────
-    st.markdown(f'<div class="section-title">{L["table3_title"]}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="unit-note">💡 {L["unit_note"]}</div>', unsafe_allow_html=True)
+# ── FORMAT NUMERIC COLUMNS ────────────────────────────────────────────────────
+for col in numeric_cols:
+    df_display[col] = df_display[col].apply(
+        lambda v: format_number(v) if v != "-" else "-"
+    )
 
-    cashflow_keys = ["operating_cf", "investing_cf", "financing_cf"]
-    try:
-        df_cf = build_table(
-            row_keys=cashflow_keys,
-            row_labels=L["rows_cashflow"],
-            df=df_raw,
-            lang=lang,
-            computed={},
-        )
-        df_cf.columns = col_headers
-        st.dataframe(df_cf, use_container_width=True)
-    except Exception as e:
-        st.error(f"{L['error_parse']}: {e}")
+# ── STATS ROW ─────────────────────────────────────────────────────────────────
+st.success(T["success"])
+st.markdown(f"<p class='section-heading'>{T['stats_title']}</p>", unsafe_allow_html=True)
 
-    # ── Footer ───────────────────────────────
-    st.divider()
+c1, c2, c3 = st.columns(3)
+with c1:
     st.markdown(
-        '<small style="color:#8b949e">Veriler İş Yatırım halka açık API\'sinden alınmaktadır. '
-        'Yatırım tavsiyesi değildir. / Data sourced from İş Yatırım public API. '
-        'Not investment advice.</small>',
+        f"""<div class="stat-card">
+            <div class="stat-label">{T['rows_label']}</div>
+            <div class="stat-value">{str(len(df)).replace(",", ".")}</div>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+with c2:
+    st.markdown(
+        f"""<div class="stat-card">
+            <div class="stat-label">{T['cols_label']}</div>
+            <div class="stat-value">{len(df.columns)}</div>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+with c3:
+    st.markdown(
+        f"""<div class="stat-card">
+            <div class="stat-label">{T['numeric_cols']}</div>
+            <div class="stat-value">{len(numeric_cols)}</div>
+        </div>""",
         unsafe_allow_html=True,
     )
 
+st.markdown("<br>", unsafe_allow_html=True)
 
-if __name__ == "__main__":
-    main()
+# ── TABLE ─────────────────────────────────────────────────────────────────────
+st.markdown(f"<p class='section-heading'>{T['preview_title']}</p>", unsafe_allow_html=True)
+
+st.dataframe(
+    df_display,
+    use_container_width=True,
+    height=min(600, 60 + len(df_display) * 35),
+)
+
+st.markdown(
+    f"<p class='footer-text'>{T['footer']}</p>",
+    unsafe_allow_html=True,
+)
