@@ -28,14 +28,10 @@ st.markdown(
         html, body, [class*="css"] {
             font-family: 'IBM Plex Sans', sans-serif;
         }
-
-        /* Genel arka plan */
         .stApp {
             background-color: #0d1117;
             color: #c9d1d9;
         }
-
-        /* Sidebar */
         section[data-testid="stSidebar"] {
             background-color: #161b22;
             border-right: 1px solid #30363d;
@@ -43,15 +39,11 @@ st.markdown(
         section[data-testid="stSidebar"] * {
             color: #c9d1d9 !important;
         }
-
-        /* Başlık */
         h1, h2, h3 {
             font-family: 'IBM Plex Mono', monospace !important;
             color: #58a6ff !important;
             letter-spacing: -0.5px;
         }
-
-        /* Tablo */
         .dataframe {
             border: 1px solid #30363d !important;
             border-radius: 8px !important;
@@ -75,8 +67,6 @@ st.markdown(
             border-color: #30363d !important;
             padding: 8px 14px !important;
         }
-
-        /* Etiket/rozet */
         .badge {
             display: inline-block;
             background: #388bfd22;
@@ -88,8 +78,6 @@ st.markdown(
             font-family: 'IBM Plex Mono', monospace;
             margin-bottom: 6px;
         }
-
-        /* Hata mesajı */
         .err-box {
             background: #2d1b1b;
             border: 1px solid #f85149;
@@ -99,8 +87,6 @@ st.markdown(
             font-family: 'IBM Plex Mono', monospace;
             font-size: 0.85rem;
         }
-
-        /* Bilgi kutusu */
         .info-box {
             background: #1c2a3a;
             border: 1px solid #388bfd;
@@ -109,8 +95,6 @@ st.markdown(
             color: #c9d1d9;
             font-size: 0.85rem;
         }
-
-        /* Stok fiyat kartı */
         .price-card {
             background: #161b22;
             border: 1px solid #30363d;
@@ -135,7 +119,7 @@ st.markdown(
 )
 
 # ─────────────────────────────────────────────
-# VERİ ÇEKME FONKSİYONLARI
+# SABİTLER
 # ─────────────────────────────────────────────
 POPULER_HISSELER = [
     "THYAO.IS", "TUPRS.IS", "SASA.IS", "ASELS.IS", "EREGL.IS",
@@ -143,6 +127,84 @@ POPULER_HISSELER = [
     "KOZAL.IS", "SISE.IS", "TOASO.IS", "FROTO.IS", "PGSUS.IS",
 ]
 
+# yfinance eski snake_case ve yeni camelCase satır adlarını birlikte kapsıyoruz.
+# Anahtar: yfinance satır adı küçük+strip hali | Değer: Türkçe gösterim
+GELIR_ESLESTIRME = {
+    # ── Eski snake_case (yfinance < 0.2) ─────────────────────────────────────
+    "total revenue":                                "Toplam Gelir",
+    "gross profit":                                 "Brüt Kâr",
+    "operating income":                             "Faaliyet Kârı",
+    "ebit":                                         "FAVÖK (EBIT)",
+    "ebitda":                                       "FAVÖK (EBITDA)",
+    "net income":                                   "Net Kâr/Zarar",
+    "net income common stockholders":               "Net Kâr/Zarar",
+    "basic eps":                                    "Hisse Başına Kâr",
+    "diluted eps":                                  "Seyreltilmiş HBK",
+    # ── Yeni PascalCase (yfinance >= 0.2.18) ──────────────────────────────────
+    "totalrevenue":                                 "Toplam Gelir",
+    "grossprofit":                                  "Brüt Kâr",
+    "operatingincome":                              "Faaliyet Kârı",
+    "operatingrevenue":                             "Faaliyet Geliri",
+    "normalizedebitda":                             "FAVÖK (EBITDA)",
+    "netincome":                                    "Net Kâr/Zarar",
+    "netincomefromcontinuingoperations":            "Net Kâr/Zarar",
+    "netincomecommonstock":                         "Net Kâr/Zarar",
+    "basiceps":                                     "Hisse Başına Kâr",
+    "dilutedeps":                                   "Seyreltilmiş HBK",
+    "costofrevenue":                                "Satışların Maliyeti",
+    "cost of revenue":                              "Satışların Maliyeti",
+    "researchanddevelopment":                       "Ar-Ge Giderleri",
+    "research and development":                     "Ar-Ge Giderleri",
+    "sellinggeneralandadministration":              "SG&A Giderleri",
+    "selling general and administrative":           "SG&A Giderleri",
+    "interestexpense":                              "Faiz Gideri",
+    "interest expense":                             "Faiz Gideri",
+    "interestincome":                               "Faiz Geliri",
+    "interest income":                              "Faiz Geliri",
+    "taxprovision":                                 "Vergi Karşılığı",
+    "tax provision":                                "Vergi Karşılığı",
+}
+
+BILANCO_ESLESTIRME = {
+    # ── Eski snake_case ───────────────────────────────────────────────────────
+    "total assets":                                 "Toplam Varlıklar",
+    "current assets":                               "Dönen Varlıklar",
+    "cash and cash equivalents":                    "Nakit & Benzerleri",
+    "cash cash equivalents and short term investments": "Nakit & Benzerleri",
+    "total liabilities net minority interest":      "Toplam Yükümlülükler",
+    "total liabilities":                            "Toplam Yükümlülükler",
+    "current liabilities":                          "Kısa Vadeli Yükümlülükler",
+    "long term debt":                               "Uzun Vadeli Borç",
+    "stockholders equity":                          "Özsermaye",
+    "common stock equity":                          "Özsermaye",
+    "retained earnings":                            "Birikmiş Kârlar",
+    # ── Yeni PascalCase ───────────────────────────────────────────────────────
+    "totalassets":                                  "Toplam Varlıklar",
+    "currentassets":                                "Dönen Varlıklar",
+    "cashandcashequivalents":                       "Nakit & Benzerleri",
+    "cashcashequivalentsandshortterminvestments":   "Nakit & Benzerleri",
+    "totalliabilitiesnetsminorityinterest":         "Toplam Yükümlülükler",
+    "totalliabilitiesnetminorityinterest":          "Toplam Yükümlülükler",
+    "currentliabilities":                           "Kısa Vadeli Yükümlülükler",
+    "longtermdebt":                                 "Uzun Vadeli Borç",
+    "longtermdebtnoncurrent":                       "Uzun Vadeli Borç",
+    "stockholdersequity":                           "Özsermaye",
+    "commonstockequity":                            "Özsermaye",
+    "retainedearnings":                             "Birikmiş Kârlar",
+    "noncurrentliabilities":                        "Uzun Vadeli Yükümlülükler",
+    "noncurrentassets":                             "Duran Varlıklar",
+    "netppe":                                       "Maddi Duran Varlıklar (Net)",
+    "net ppe":                                      "Maddi Duran Varlıklar (Net)",
+    "inventory":                                    "Stoklar",
+    "accountsreceivable":                           "Ticari Alacaklar",
+    "accounts receivable":                          "Ticari Alacaklar",
+    "workingcapital":                               "Net Çalışma Sermayesi",
+}
+
+
+# ─────────────────────────────────────────────
+# YARDIMCI FONKSİYONLAR
+# ─────────────────────────────────────────────
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def hisse_bilgisi_getir(ticker_kodu: str) -> dict:
@@ -152,7 +214,7 @@ def hisse_bilgisi_getir(ticker_kodu: str) -> dict:
         info = ticker.info or {}
         return {
             "sirket_adi": info.get("longName", ticker_kodu),
-            "sektor": info.get("sector", "—"),
+            "sektor":     info.get("sector", "—"),
             "para_birimi": info.get("currency", "TRY"),
         }
     except Exception:
@@ -160,76 +222,142 @@ def hisse_bilgisi_getir(ticker_kodu: str) -> dict:
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def finansal_veri_getir(ticker_kodu: str, donem: str) -> dict[str, pd.DataFrame | None]:
+def finansal_veri_getir(ticker_kodu: str, donem: str) -> dict:
     """
     Gelir Tablosu ve Bilanço verilerini çeker.
     donem: "Çeyreklik" | "Yıllık"
+
+    yfinance bazı hisselerde DataFrame'i TRANSPOSED döndürebilir
+    (dönemler satırda, kalemler sütunda). _normalize_df() bunu düzeltir.
     """
     try:
         ticker = yf.Ticker(ticker_kodu)
 
-        if donem == "Çeyreklik":
-            gelir = ticker.quarterly_financials
-            bilanco = ticker.quarterly_balance_sheet
-        else:
-            gelir = ticker.financials
-            bilanco = ticker.balance_sheet
+        ceyreklik = (donem == "Çeyreklik")
 
-        return {"gelir_tablosu": gelir, "bilanco": bilanco}
+        # Yeni API adları (yfinance >= 0.2.18)
+        gelir   = ticker.quarterly_income_stmt   if ceyreklik else ticker.income_stmt
+        bilanco = ticker.quarterly_balance_sheet if ceyreklik else ticker.balance_sheet
+
+        # Eski API fallback
+        if gelir is None or (hasattr(gelir, "empty") and gelir.empty):
+            gelir = ticker.quarterly_financials if ceyreklik else ticker.financials
+
+        return {
+            "gelir_tablosu": _normalize_df(gelir),
+            "bilanco":        _normalize_df(bilanco),
+        }
 
     except Exception as e:
         return {"hata": str(e), "gelir_tablosu": None, "bilanco": None}
 
 
-def df_formatla(df: pd.DataFrame, para_birimi: str = "TRY") -> pd.DataFrame:
-    if df is None or df.empty:
+def _normalize_df(df) -> pd.DataFrame | None:
+    """
+    Satırlar=kalemler, sütunlar=dönemler olacak şekilde normalize eder.
+    yfinance bazı durumlarda transpozunu döndürür; index'e bakarak anlarız.
+    """
+    if df is None:
+        return None
+    if not isinstance(df, pd.DataFrame) or df.empty:
         return df
+    # İlk index değeri Timestamp ise → transpozlanmış
+    if isinstance(df.index[0], pd.Timestamp):
+        df = df.T
+    return df
+
+
+def _kolon_formatla(col) -> str:
+    """Timestamp veya string sütun adını YYYY-AA formatına çevirir."""
+    try:
+        if hasattr(col, "strftime"):
+            return col.strftime("%Y-%m")
+        return str(col)[:10]
+    except Exception:
+        return str(col)
+
+
+def _sayi_formatla(x) -> str:
+    """
+    Sayıyı USD cinsinden okunabilir biçimde gösterir.
+    yfinance verileri zaten USD olarak döner.
+
+    ≥ 1B  → $1.23B
+    ≥ 1M  → $1.23M
+    ≥ 1K  → $1.23K
+    diğer → $1.23
+    """
+    try:
+        val = float(x)
+        if pd.isna(val):
+            return "—"
+        sign = "-" if val < 0 else ""
+        abs_val = abs(val)
+        if abs_val >= 1e9:
+            return f"{sign}${abs_val / 1e9:,.2f}B"
+        elif abs_val >= 1e6:
+            return f"{sign}${abs_val / 1e6:,.2f}M"
+        elif abs_val >= 1e3:
+            return f"{sign}${abs_val / 1e3:,.2f}K"
+        else:
+            return f"{sign}${abs_val:,.2f}"
+    except (TypeError, ValueError):
+        return str(x) if x is not None else "—"
+
+
+def df_hazirla(df: pd.DataFrame, eslestirme: dict, para_birimi: str) -> pd.DataFrame | None:
+    """
+    Ham DataFrame'i alır:
+      1. Eşleştirme tablosuna göre istenen satırları seçer ve Türkçeleştirir.
+      2. Sütun adlarını tarihe çevirir.
+      3. Sayıları biçimlendirir (Pandas 2.x uyumlu: applymap → map).
+    """
+    if df is None or df.empty:
+        return None
 
     df = df.copy()
 
-    # Tarih sütunlarını güvenli stringe çevir
-    yeni_kolonlar = []
-    for col in df.columns:
-        try:
-            if hasattr(col, "year"):
-                yeni_kolonlar.append(f"{col.year}-{col.month:02d}")
-            else:
-                yeni_kolonlar.append(str(col))
-        except:
-            yeni_kolonlar.append(str(col))
+    # ── 1. Satır seçimi & Türkçeleştirme ────────────────────────────────────
+    secilen = {}   # {orijinal_index: türkçe_ad}
+    for orig_idx in df.index:
+        anahtar = str(orig_idx).lower().strip()
+        # Birebir eşleşme
+        if anahtar in eslestirme:
+            secilen[orig_idx] = eslestirme[anahtar]
+            continue
+        # Kısmi eşleşme (camelCase / boşluk farkı)
+        for pattern, tr_ad in eslestirme.items():
+            if pattern in anahtar or anahtar in pattern:
+                if orig_idx not in secilen:
+                    secilen[orig_idx] = tr_ad
+                break
 
-    # Duplicate kolonları kaldır
-    df.columns = pd.Index(yeni_kolonlar)
-    df = df.loc[:, ~df.columns.duplicated()]
+    if not secilen:
+        # Eşleşme yoksa tüm satırları ham haliyle göster
+        secili_idx = list(df.index)
+        tr_adlar   = [str(i) for i in secili_idx]
+    else:
+        # Aynı Türkçe ada karşılık gelen ilk satırı al (duplicate önleme)
+        gorulmus = set()
+        secili_idx, tr_adlar = [], []
+        for orig, tr in secilen.items():
+            if tr not in gorulmus:
+                secili_idx.append(orig)
+                tr_adlar.append(tr)
+                gorulmus.add(tr)
 
-    # Sayı formatlama
-    def sayi_formatla(x):
-        try:
-            val = float(x)
-            if abs(val) >= 1e9:
-                return f"{val/1e9:,.2f} Mr"
-            elif abs(val) >= 1e6:
-                return f"{val/1e6:,.2f} Mn"
-            else:
-                return f"{val:,.0f}"
-        except:
-            return x
+    sonuc = df.loc[secili_idx].copy()
+    sonuc.index = pd.Index(tr_adlar, name="Kalem (USD)")
 
-    return df.applymap(sayi_formatla)
+    # ── 2. Sütun adları ──────────────────────────────────────────────────────
+    sonuc.columns = pd.Index([_kolon_formatla(c) for c in sonuc.columns])
+    # Duplicate sütunları kaldır
+    sonuc = sonuc.loc[:, ~sonuc.columns.duplicated()]
 
+    # ── 3. Sayı formatlama (Pandas 2.x: applymap() kaldırıldı → map() kullan)
+    sonuc = sonuc.apply(lambda col: col.map(_sayi_formatla))
 
-def ozet_satirlar_sec(df: pd.DataFrame, anahtar_satirlar: list[str]) -> pd.DataFrame:
-    """İstenen özet satırları filtreler (büyük/küçük harf duyarsız kısmi eşleşme)."""
-    if df is None or df.empty:
-        return df
-    bulunan = []
-    for satir in anahtar_satirlar:
-        eslesme = [idx for idx in df.index if satir.lower() in str(idx).lower()]
-        bulunan.extend(eslesme)
-    # Tekrarları kaldır, sırası koru
-    seen = set()
-    bulunan = [x for x in bulunan if not (x in seen or seen.add(x))]
-    return df.loc[bulunan] if bulunan else df
+    return sonuc
 
 
 # ─────────────────────────────────────────────
@@ -267,14 +395,12 @@ with st.sidebar:
     )
 
     st.markdown("---")
-    veri_cek = st.button("🔄 Verileri Getir", use_container_width=True, type="primary")
-
     st.markdown(
         """
-        <div style='margin-top:24px;font-size:0.72rem;color:#484f58;line-height:1.6'>
+        <div style='font-size:0.72rem;color:#484f58;line-height:1.8'>
         Veri Kaynağı: <b>yfinance</b><br>
         Güncelleme: ~60 dk. önbellek<br>
-        Birim: Milyar (Mr) / Milyon (Mn)
+        Birim: USD · $1.23B / $1.23M / $1.23K
         </div>
         """,
         unsafe_allow_html=True,
@@ -291,7 +417,6 @@ st.markdown(
 )
 st.markdown("---")
 
-# Başlangıç durumu: hiç ticker seçilmemişse yönlendirme
 if not ticker_kodu:
     st.markdown(
         '<div class="info-box">👈 Sol menüden bir hisse senedi seçerek başlayın.</div>',
@@ -299,30 +424,34 @@ if not ticker_kodu:
     )
     st.stop()
 
-# ── Hisse Özet Kartı ──────────────────────────
+# ── Hisse Özet Kartı ─────────────────────────────────────────────────────────
 info = hisse_bilgisi_getir(ticker_kodu)
+
 st.markdown(
     f"""
     <div class="price-card">
         <div class="ticker">{ticker_kodu}</div>
-        <div class="company">{info['sirket_adi']} &nbsp;·&nbsp; {info['sektor']} &nbsp;·&nbsp; {info['para_birimi']}</div>
+        <div class="company">
+            {info['sirket_adi']} &nbsp;·&nbsp; {info['sektor']} &nbsp;·&nbsp; USD
+        </div>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
-# ── Veri Yükleme ─────────────────────────────
+# ── Veri Yükleme ─────────────────────────────────────────────────────────────
 with st.spinner(f"{ticker_kodu} için {donem.lower()} veriler yükleniyor…"):
     veriler = finansal_veri_getir(ticker_kodu, donem)
 
 if "hata" in veriler:
     st.markdown(
-        f'<div class="err-box">⚠️ Veri çekilirken hata oluştu:<br><code>{veriler["hata"]}</code></div>',
+        f'<div class="err-box">⚠️ Veri çekilirken hata oluştu:<br>'
+        f'<code>{veriler["hata"]}</code></div>',
         unsafe_allow_html=True,
     )
     st.stop()
 
-gelir_df_ham = veriler.get("gelir_tablosu")
+gelir_df_ham   = veriler.get("gelir_tablosu")
 bilanco_df_ham = veriler.get("bilanco")
 
 # ─────────────────────────────────────────────
@@ -330,37 +459,19 @@ bilanco_df_ham = veriler.get("bilanco")
 # ─────────────────────────────────────────────
 st.markdown("## 📋 Özet Gelir Tablosu")
 
-GELIR_SATIRLARI = [
-    "Total Revenue",
-    "Gross Profit",
-    "Operating Income",
-    "EBITDA",
-    "Net Income",
-    "Basic EPS",
-]
-
 if gelir_df_ham is not None and not gelir_df_ham.empty:
-    gelir_ozet = ozet_satirlar_sec(gelir_df_ham, GELIR_SATIRLARI)
-    gelir_formatli = df_formatla(gelir_ozet, info["para_birimi"])
-
-    # Satır isimlerini Türkçeleştir
-    GELIR_TR = {
-        "Total Revenue": "Toplam Gelir",
-        "Gross Profit": "Brüt Kâr",
-        "Operating Income": "Faaliyet Kârı",
-        "EBITDA": "FAVÖK",
-        "Net Income": "Net Kâr/Zarar",
-        "Basic EPS": "Hisse Başına Kâr",
-    }
-    gelir_formatli.index = [
-        GELIR_TR.get(idx, idx) for idx in gelir_formatli.index
-    ]
-    gelir_formatli.index.name = f"Kalem ({info['para_birimi']})"
-
-    st.dataframe(gelir_formatli, use_container_width=True)
+    gelir_df = df_hazirla(gelir_df_ham, GELIR_ESLESTIRME, info["para_birimi"])
+    if gelir_df is not None and not gelir_df.empty:
+        st.dataframe(gelir_df, use_container_width=True)
+    else:
+        st.markdown(
+            '<div class="info-box">ℹ️ Gelir tablosu için eşleşen kalem bulunamadı.</div>',
+            unsafe_allow_html=True,
+        )
 else:
     st.markdown(
-        '<div class="info-box">ℹ️ Gelir tablosu verisi bulunamadı.</div>',
+        '<div class="info-box">ℹ️ Gelir tablosu verisi bulunamadı. '
+        'Bu hisse için yfinance veri sağlamıyor olabilir.</div>',
         unsafe_allow_html=True,
     )
 
@@ -371,40 +482,19 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ─────────────────────────────────────────────
 st.markdown("## 🏦 Özet Bilanço")
 
-BILANCO_SATIRLARI = [
-    "Total Assets",
-    "Current Assets",
-    "Cash",
-    "Total Liabilities",
-    "Current Liabilities",
-    "Long Term Debt",
-    "Stockholders Equity",
-    "Retained Earnings",
-]
-
 if bilanco_df_ham is not None and not bilanco_df_ham.empty:
-    bilanco_ozet = ozet_satirlar_sec(bilanco_df_ham, BILANCO_SATIRLARI)
-    bilanco_formatli = df_formatla(bilanco_ozet, info["para_birimi"])
-
-    BILANCO_TR = {
-        "Total Assets": "Toplam Varlıklar",
-        "Current Assets": "Dönen Varlıklar",
-        "Cash": "Nakit & Nakit Benzerleri",
-        "Total Liabilities": "Toplam Yükümlülükler",
-        "Current Liabilities": "Kısa Vadeli Yükümlülükler",
-        "Long Term Debt": "Uzun Vadeli Borç",
-        "Stockholders Equity": "Özsermaye",
-        "Retained Earnings": "Birikmiş Kârlar",
-    }
-    bilanco_formatli.index = [
-        BILANCO_TR.get(idx, idx) for idx in bilanco_formatli.index
-    ]
-    bilanco_formatli.index.name = f"Kalem ({info['para_birimi']})"
-
-    st.dataframe(bilanco_formatli, use_container_width=True)
+    bilanco_df = df_hazirla(bilanco_df_ham, BILANCO_ESLESTIRME, info["para_birimi"])
+    if bilanco_df is not None and not bilanco_df.empty:
+        st.dataframe(bilanco_df, use_container_width=True)
+    else:
+        st.markdown(
+            '<div class="info-box">ℹ️ Bilanço için eşleşen kalem bulunamadı.</div>',
+            unsafe_allow_html=True,
+        )
 else:
     st.markdown(
-        '<div class="info-box">ℹ️ Bilanço verisi bulunamadı.</div>',
+        '<div class="info-box">ℹ️ Bilanço verisi bulunamadı. '
+        'Bu hisse için yfinance veri sağlamıyor olabilir.</div>',
         unsafe_allow_html=True,
     )
 
